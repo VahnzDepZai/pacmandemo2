@@ -7,37 +7,44 @@
     padding: 0;
     margin: 0;
     background-color: black;
+    font-family: sans-serif;
 }
 
+/* Khu vực game */
 #pacman {
-    height: 470px;
-    width: 382px;
+    height: auto; /* Cho phép chiều cao tự điều chỉnh */
+    width: 90%; /* Đảm bảo phù hợp với màn hình nhỏ */
+    max-width: 400px; /* Đặt giới hạn chiều rộng tối đa */
     border-radius: 5px;
     margin: 20px auto;
+    background-color: #000; /* Giữ nền đen */
+    display: flex;
+    justify-content: center;
 }
 
+/* Shim và tiêu đề */
 #shim {
     font-family: 'Permanent Marker', cursive;
     position: absolute;
-    visibility: hidden
+    visibility: hidden;
 }
 
 h1 {
     font-family: 'Permanent Marker', cursive;
     text-align: center;
     color: yellow;
+    font-size: 24px; /* Điều chỉnh kích thước chữ */
+    margin: 10px 0;
 }
 
-body {
-    width: 342px;
-    margin: 0px auto;
-    font-family: sans-serif;
-}
-
+/* Liên kết */
 p {
     text-decoration: none;
     color: #0000FF;
+    text-align: center;
 }
+
+/* Điều khiển */
 #controls {
     position: fixed;
     bottom: 20px;
@@ -45,13 +52,17 @@ p {
     transform: translateX(-50%);
     display: grid;
     grid-template-areas: 
-      ". up ."
-      "left start right"
-      ". down .";
+        ". up ."
+        "left start right"
+        ". down .";
     grid-gap: 10px;
-  }
-  
-  #controls button {
+    width: 100%;
+    max-width: 400px; /* Giới hạn tối đa để cân đối */
+    padding: 10px;
+}
+
+/* Nút điều khiển */
+#controls button {
     width: 60px;
     height: 60px;
     background-color: #333;
@@ -60,14 +71,32 @@ p {
     border-radius: 10px;
     font-size: 16px;
     cursor: pointer;
-  }
-  
-  #up { grid-area: up; }
-  #left { grid-area: left; }
-  #right { grid-area: right; }
-  #down { grid-area: down; }
-  #start { grid-area: start; }
-  
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.3s;
+}
+
+#controls button:hover {
+    background-color: #555; /* Hiệu ứng hover */
+}
+
+/* Khu vực các nút */
+#up { grid-area: up; }
+#left { grid-area: left; }
+#right { grid-area: right; }
+#down { grid-area: down; }
+#start { grid-area: start; }
+
+/* Media Queries cho màn hình nhỏ */
+@media (max-width: 600px) {
+    #pacman {
+        width: 100%; /* Sử dụng toàn bộ chiều rộng màn hình */
+    }
+    #controls button {
+        width: 50px;
+        height: 50px;
+        font-size: 14px; /* Giảm kích thước chữ */
+    }
+}
 	</style>
 <head>
 	<title>Maintenance - Moota.co</title>
@@ -89,8 +118,32 @@ p {
 	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
 	<script type="text/javascript" >
 document.getElementById('start').addEventListener('click', function () {
-    
-    startNewGame();
+    var diff;
+
+        if (state !== PAUSE) { 
+            ++tick;
+        }
+        map.drawPills(ctx);
+    if (state === COUNTDOWN) {
+            
+        diff = 5 + Math.floor((timerStart - tick) / Pacman.FPS);
+        
+        if (diff === 0) {
+            map.draw(ctx);
+            setState(PLAYING);
+        } else {
+            if (diff !== lastTime) { 
+                lastTime = diff;
+                map.draw(ctx);
+                dialog("Starting in: " + diff);
+            }
+        }
+    }
+        drawFooter();
+        User.draw(ctx)
+        Ghost.draw(ctx)
+        startNewGame();
+        startLevel()
 });
 document.getElementById('up').addEventListener('click', function() {
     var event = new KeyboardEvent('keydown', {'keyCode': 38});
@@ -1083,7 +1136,7 @@ var PACMAN = (function () {
         } else if (state === WAITING && stateChanged) {            
             stateChanged = false;
             map.draw(ctx);
-            dialog("Press N to start a New game");            
+            dialog("Hãy ấn vào màn hình để bắt đầu game");            
         } else if (state === EATEN_PAUSE && 
                    (tick - timerStart) > (Pacman.FPS / 3)) {
             map.draw(ctx);
@@ -1141,48 +1194,53 @@ var PACMAN = (function () {
             e.stopPropagation();
         }
     };
-    
-    function init(wrapper, root) {
-        
-        var i, len, ghost,
-            blockSize = wrapper.offsetWidth / 19,
-            canvas    = document.createElement("canvas");
-        
-        canvas.setAttribute("width", (blockSize * 19) + "px");
-        canvas.setAttribute("height", (blockSize * 22) + 30 + "px");
+  // Tìm phần khởi tạo canvas và thêm sự kiện click
+function init(wrapper, root) {
+    var i, len, ghost,
+        blockSize = wrapper.offsetWidth / 19,
+        canvas = document.createElement("canvas");
 
-        wrapper.appendChild(canvas);
+    canvas.setAttribute("width", (blockSize * 19) + "px");
+    canvas.setAttribute("height", (blockSize * 22) + 30 + "px");
 
-        ctx  = canvas.getContext('2d');
+    wrapper.appendChild(canvas);
 
-        audio = new Pacman.Audio({"soundDisabled":soundDisabled});
-        map   = new Pacman.Map(blockSize);
-        user  = new Pacman.User({ 
-            "completedLevel" : completedLevel, 
-            "eatenPill"      : eatenPill 
-        }, map);
+    ctx = canvas.getContext('2d');
 
-        for (i = 0, len = ghostSpecs.length; i < len; i += 1) {
-            ghost = new Pacman.Ghost({"getTick":getTick}, map, ghostSpecs[i]);
-            ghosts.push(ghost);
+    // Thêm sự kiện chạm vào canvas để bắt đầu trò chơi
+    canvas.addEventListener('click', function () {
+        if (state === WAITING) {
+            startNewGame(); // Bắt đầu trò chơi
         }
-        
-        map.draw(ctx);
-        dialog("Loading ...");
+    });
 
-        var extension = Modernizr.audio.ogg ? 'ogg' : 'mp3';
+    audio = new Pacman.Audio({ "soundDisabled": soundDisabled });
+    map = new Pacman.Map(blockSize);
+    user = new Pacman.User({
+        "completedLevel": completedLevel,
+        "eatenPill": eatenPill
+    }, map);
 
-        var audio_files = [
-            ["start", root + "audio/opening_song." + extension],
-            ["die", root + "audio/die." + extension],
-            ["eatghost", root + "audio/eatghost." + extension],
-            ["eatpill", root + "audio/eatpill." + extension],
-            ["eating", root + "audio/eating.short." + extension],
-            ["eating2", root + "audio/eating.short." + extension]
-        ];
+    for (i = 0, len = ghostSpecs.length; i < len; i += 1) {
+        ghost = new Pacman.Ghost({ "getTick": getTick }, map, ghostSpecs[i]);
+        ghosts.push(ghost);
+    }
 
-        load(audio_files, function() { loaded(); });
-    };
+    map.draw(ctx);
+    dialog("Tap to start the game");
+    var extension = Modernizr.audio.ogg ? 'ogg' : 'mp3';
+    var audio_files = [
+        ["start", root + "audio/opening_song." + extension],
+        ["die", root + "audio/die." + extension],
+        ["eatghost", root + "audio/eatghost." + extension],
+        ["eatpill", root + "audio/eatpill." + extension],
+        ["eating", root + "audio/eating.short." + extension],
+        ["eating2", root + "audio/eating.short." + extension]
+    ];
+
+    load(audio_files, function () { loaded(); });
+}
+
 
     function load(arr, callback) { 
         
@@ -1394,13 +1452,6 @@ $(function(){
         "(firefox 3.6+, Chrome 4+, Opera 10+ and Safari 4+)</small>";
     }
 });
-
-// Đếm ngược tự động bắt đầu game
-
-
-
- 
-
 	</script>
 </body>
 </html>
